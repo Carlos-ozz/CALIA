@@ -2,3 +2,9 @@ langchain
 langchain-google-genai
 python-dotenv
 streamlit
+google-generativeai
+langchain_community
+faiss-cpu
+langchain-text-splitters
+pymupdf
+langgraph

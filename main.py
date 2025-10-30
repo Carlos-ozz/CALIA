@@ -1,27 +1,28 @@
 import streamlit as st
+from pathlib import Path
 import time
-from utils import carregar_memorias, salvar_memoria
-from langchain_google_genai import ChatGoogleGenerativeAI
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
+from utils import salvar_memoria
+from langchain_google_genai import ChatGoogleGenerativeAI
+from rag import criar_retriever, salvar_historico_como_txt, atualizar_faiss_com_novo_arquivo
 
-# CARREGAR API KEY NO ARQUIVO .ENV
+# ==============================================
+#    CONFIGURAÇÃO INICIAL
+# ==============================================
 load_dotenv()
 CALIA_KEY = os.getenv("API_KEY_CALIA")
+RAG_PATH = os.getenv("RAG_PATH")
 
-# CONFIGURAÇÕES INICIAIS 
-st.set_page_config(page_title=" CALIA", page_icon="💜", layout="centered")
+st.set_page_config(page_title="CALIA", page_icon="💜", layout="centered")
 
-# ESTILO PERSONALIZADO 
+# ==============================================
+#    ESTILO PERSONALIZADO
+# ==============================================
 st.markdown("""
     <style>
-        body {
-            background-color: #faf6ff;
-            color: #3c2a4d;
-        }
-        .main {
-            background-color: #faf6ff;
-        }
+        body { background-color: #faf6ff; color: #3c2a4d; }
+        .main { background-color: #faf6ff; }
         .stTextInput input {
             border-radius: 12px;
             border: 2px solid #c8a2ff;
@@ -51,33 +52,33 @@ st.markdown("""
             flex-direction: column;
             gap: 6px;
         }
-        .memory-button {
-            background-color: #cdb4ff;
-            color: #fff;
-            border-radius: 10px;
-            padding: 6px 12px;
-            border: none;
-            font-weight: bold;
-        }
     </style>
 """, unsafe_allow_html=True)
 
-# INICIALIZAÇÃO DO MODELO
-
+# ==============================================
+#    INICIALIZAÇÃO DO MODELO E RETRIEVER
+# ==============================================
 calia_llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     temperature=0.6,
     api_key=CALIA_KEY
 )
 
-# ESTADO DE SESSÃO
+# Inicializa o RAG (carrega FAISS e documentos)
+retriever = criar_retriever(RAG_PATH)
+
+# ==============================================
+#    ESTADO DE SESSÃO
+# ==============================================
 if "historico" not in st.session_state:
     st.session_state.historico = []
 
-# CABEÇALHO
+# ==============================================
+#   INTERFACE DO CHAT
+# ==============================================
 st.title("💜 CALIA")
 
-# EXIBIR CONVERSA
+# Exibir histórico de conversa
 st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
 for msg in st.session_state.historico:
     if msg["remetente"] == "user":
@@ -86,28 +87,57 @@ for msg in st.session_state.historico:
         st.markdown(f"<div class='calia-bubble'>{msg['texto']}</div>", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ENTRADA DO USUÁRIO
+# ==============================================
+#    ENTRADA DO USUÁRIO
+# ==============================================
 prompt = st.chat_input("Escreva algo para CALIA...")
 
 if prompt:
-    # Adiciona mensagem do usuário
     st.session_state.historico.append({"remetente": "user", "texto": prompt})
 
-    # Mostra animação "digitando..."
     with st.spinner("CALIA está pensando... 💭"):
-        time.sleep(0.6)
-        resposta = calia_llm.invoke(prompt).content
+        # Busca contexto no RAG
+        docs = retriever.invoke(prompt)
+        contexto = "\n\n".join([d.page_content for d in docs]) if docs else "Nenhum contexto relevante encontrado."
 
-    # Adiciona resposta da CALIA
+        # Monta o prompt com contexto
+        prompt_final = f"""
+        Use o seguinte contexto para responder de forma útil e natural:
+        {contexto}
+
+        Pergunta do usuário: {prompt}
+        """
+
+        # Gera a resposta com o modelo LLM
+        time.sleep(0.6)
+        resposta = calia_llm.invoke(prompt_final).content
+
+    # Armazena a resposta no histórico
     st.session_state.historico.append({"remetente": "calia", "texto": resposta})
 
-    # Atualiza visual
     st.rerun()
 
-# BOTÃO DE MEMÓRIA 
+# ==============================================
+#    BOTÕES DE AÇÃO
+# ==============================================
 if len(st.session_state.historico) > 0:
     ultima = st.session_state.historico[-1]
+
+    # Salvar resposta como memória (antigo)
     if ultima["remetente"] == "calia":
         if st.button("Salvar essa resposta como memória"):
             salvar_memoria(ultima["texto"])
             st.success("Memória salva ✅")
+
+    # Salvar conversa completa como .txt e atualizar FAISS
+    if st.button(" Salvar conversa no RAG"):
+        arquivo = salvar_historico_como_txt(st.session_state.historico, RAG_PATH)
+        if arquivo:
+            atualizar_faiss_com_novo_arquivo(arquivo)
+            st.success("Conversa salva e adicionada ao RAG com sucesso ")
+
+pasta_docs = Path(RAG_PATH)
+
+if not pasta_docs.exists():
+    os.makedirs(pasta_docs)
+    print(f"[INFO] Pasta RAG criada automaticamente em: {pasta_docs}")
