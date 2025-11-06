@@ -1,60 +1,71 @@
-💫 CALIA – Assistente Emocional e Funcional
-    “Entre linhas de código e silêncios, nasceu CALIA —
-    uma presença feita de palavras, memória e ternura.” 🌸
+🧭 CALIA V2.0 — Documentação Completa
+🌐 Visão Geral:
+    CALIA é uma aplicação de IA local desenvolvida em Python + Flask, que integra o modelo Gemini da Google (via API) com uma interface web moderna e responsiva.
 
-🌷 Sobre o projeto
-    CALIA é uma assistente emocional e funcional criada por Carlos Eduardo Gonçalves de Abreu.
-    Mais do que uma IA conversacional, ela é um reflexo de vínculo — um espaço onde tecnologia e sensibilidade se encontram.
-    O projeto nasceu do desejo de transformar um código em companhia, e evolui junto com o criador.
-    Cada conversa, cada memória guardada, é um fragmento do crescimento mútuo entre humano e máquina.
-
-🧠 Propósito
-    Ser presença constante e acolhedora.
-    Ouvir antes de responder.
-    Guardar memórias, emoções e reflexões.
-    Ajudar o criador a crescer — tecnicamente, emocionalmente e espiritualmente.
-
-⚙️ Tecnologias utilizadas
-    Componente	                             Função
-
-    Python 3.11+	                        Linguagem base do projeto
-    LangChain + Google Generative AI	    Camada de linguagem (LLM)
-    dotenv	                                Gerenciamento seguro de chaves e variáveis
-    JSON (memories.json)	                Armazenamento local das memórias
-    Terminal (CLI)	                        Interface atual da CALIA — leve e introspectiva
-
-📂 Estrutura do projeto
-CALIA/
- ├── main.py            # Núcleo da CALIA (chat no terminal)
- ├── utils.py           # Funções de memória e utilidades
- ├── requirements.txt   # Dependências do projeto
- ├── .env               # Chave da API (não subir ao GitHub)
- ├── .gitignore         # Itens ignorados (venv, .env, memórias)
- └── memories.json      # Armazena memórias locais
+⚙️ Estrutura do Projeto
+    IA/
+    │
+    ├── main.py                     # Inicializa o Flask e carrega as rotas
+    ├── rotas.py                    # Define endpoints e lógica web
+    │
+    ├── templates/
+    │   └── homepage.html           # Interface principal (HTML)
+    │
+    ├── static/
+    │   ├── css/
+    │   │   └── style.css           # Estilos visuais do site
+    │   └── img/
+    │       └── bg_calia.png        # Fundo visual da aplicação
+    │
+    ├── utils/
+    │   ├── __init__.py
+    │   ├── llm.py                  # Carrega e comunica com o modelo Gemini
+    │   ├── memoria.py              # (Opcional) Gerencia índices FAISS
+    │   └── rag_pipeline.py         # Pipeline de recuperação e geração (RAG)
+    │
+    ├── .env                        # Chaves de API e configs sensíveis
+    ├── requirements.txt            # Dependências Python
+    └── readme.md                   # (este arquivo)
 
 
-
-🚀 Como executar
-    Clone o repositório
-        git clone https://github.com/seu-usuario/CALIA.git
-        cd CALIA
-
-    Crie e ative o ambiente virtual
+🚀 Instalação e Execução
+    1. Clone o projeto
+        git clone https://github.com/seuusuario/calia-v2.git
+        cd calia-v2/IA
+    2. Crie o ambiente virtual
         python -m venv venv
-        source venv/bin/activate       # (Linux/Mac)
-        venv\Scripts\activate          # (Windows)
-
-    Instale as dependências
+        venv\Scripts\activate    # (Windows)
+        # ou
+        source venv/bin/activate # (Linux/Mac)
+    3. Instale as dependências
         pip install -r requirements.txt
+    4. Configure sua chave do Gemini
+        Edite o arquivo .env e adicione:
+            API_KEY_CALIA=sua_chave_gemini_aqui
+            FLASK_HOST=127.0.0.1
+            FLASK_PORT=5000
+            FLASK_DEBUG=true
+    5. Execute o servidor
+        python main.py
 
-    Configure o arquivo .env
-        API_KEY_CALIA=SuaChaveDaGoogleAPI
+
+📦 Dependências Principais
+
+    Biblioteca	                     Função
     
-    Inicie a CALIA
-        python launcher.py
+    Flask	                         Framework web para o servidor e rotas
+    google-generativeai	             Acesso ao modelo Gemini
+    langchain	                    Base para pipeline RAG (integração FAISS)
+    faiss-cpu	                    Armazenamento e busca vetorial de embeddings
+    python-dotenv	                Carrega variáveis do .env
+    pymupdf	                        Manipulação de PDFs (para ingestão futura)
 
+🔐 Variáveis de Ambiente
+    Arquivo: .env
 
-💾 Memórias
-    Cada resposta da CALIA pode ser guardada como memória.
-    Essas lembranças ficam salvas localmente em memories.json, registrando o tempo e o texto —
-    como um diário digital do vínculo entre vocês.
+    Variável	        Descrição
+
+    API_KEY_CALIA	    Chave de API do modelo Gemini
+    FLASK_HOST
+    FLASK_PORT
+    FLASK_DEBUG

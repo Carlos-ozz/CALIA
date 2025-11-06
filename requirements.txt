@@ -1,10 +1,31 @@
-langchain
-langchain-google-genai
+# -------------------------
+# CALIA V2.0 Requirements
+# -------------------------
+
+# Core Web Framework
+Flask
+
+# Ambiente e variáveis
 python-dotenv
-streamlit
-google-generativeai
-langchain_community
-faiss-cpu
+
+# IA e LLMs
+google-generativeai       # Gemini API oficial
+langchain
+langchain-core
+langchain-community
 langchain-text-splitters
+langchain-huggingface
+
+# Vetores e Memória
+faiss-cpu
+
+# Processamento de PDF e texto
 pymupdf
-langgraph
+
+# Utilitários gerais
+tqdm
+requests
+sentence-transformers
+
+# (Opcional) Para ingestão e parsing avançado
+beautifulsoup4

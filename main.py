@@ -1,143 +1,79 @@
-import streamlit as st
-from pathlib import Path
-import time
-import os
+"""
+main.py — Ponto de entrada principal do projeto CALIA V2.0
+
+Responsável por:
+ - Inicializar o aplicativo Flask
+ - Carregar variáveis de ambiente (.env)
+ - Configurar logging
+ - Registrar o blueprint de rotas (rotas.py)
+ - Iniciar o servidor local de desenvolvimento
+
+Autor: Carlos
+Projeto: CALIA V2.0
+"""
+
+from flask import Flask
 from dotenv import load_dotenv
-from utils import salvar_memoria
-from langchain_google_genai import ChatGoogleGenerativeAI
-from rag import criar_retriever, salvar_historico_como_txt, atualizar_faiss_com_novo_arquivo
+from rotas import site_routes
+import logging
+import os
 
-# ==============================================
-#    CONFIGURAÇÃO INICIAL
-# ==============================================
-load_dotenv()
-CALIA_KEY = os.getenv("API_KEY_CALIA")
-RAG_PATH = os.getenv("RAG_PATH")
+# -------------------------------
+# 🔧 Configuração Inicial
+# -------------------------------
 
-st.set_page_config(page_title="CALIA", page_icon="💜", layout="centered")
+def create_app() -> Flask:
+    """
+    Cria e configura a instância principal do Flask.
 
-# ==============================================
-#    ESTILO PERSONALIZADO
-# ==============================================
-st.markdown("""
-    <style>
-        body { background-color: #faf6ff; color: #3c2a4d; }
-        .main { background-color: #faf6ff; }
-        .stTextInput input {
-            border-radius: 12px;
-            border: 2px solid #c8a2ff;
-            padding: 8px;
-        }
-        .user-bubble {
-            background-color: rgba(128, 128, 128, 0.2);
-            border-radius: 18px;
-            padding: 10px 16px;
-            margin: 4px 0;
-            text-align: right;
-            max-width: 80%;
-            align-self: flex-end;
-        }
-        .calia-bubble {
-            background-color: rgba(157, 0, 255, 0.2);
-            border-radius: 18px;
-            padding: 10px 16px;
-            margin: 4px 0;
-            text-align: left;
-            max-width: 80%;
-            align-self: flex-start;
-            font-style: italic;
-        }
-        .chat-container {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-    </style>
-""", unsafe_allow_html=True)
+    Returns:
+        Flask: objeto da aplicação Flask configurado e pronto para uso.
+    """
+    # Carrega variáveis de ambiente (ex: API_KEY_CALIA)
+    load_dotenv()
 
-# ==============================================
-#    INICIALIZAÇÃO DO MODELO E RETRIEVER
-# ==============================================
-calia_llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    temperature=0.6,
-    api_key=CALIA_KEY
-)
+    # Cria instância do Flask (define templates e static folders)
+    app = Flask(
+        __name__,
+        template_folder="templates",
+        static_folder="static"
+    )
 
-# Inicializa o RAG (carrega FAISS e documentos)
-retriever = criar_retriever(RAG_PATH)
+    # Registra as rotas definidas em rotas.py
+    app.register_blueprint(site_routes)
 
-# ==============================================
-#    ESTADO DE SESSÃO
-# ==============================================
-if "historico" not in st.session_state:
-    st.session_state.historico = []
+    # Configuração do logger
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
 
-# ==============================================
-#   INTERFACE DO CHAT
-# ==============================================
-st.title("💜 CALIA")
+    logging.info("Aplicação Flask inicializada com sucesso.")
+    return app
 
-# Exibir histórico de conversa
-st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
-for msg in st.session_state.historico:
-    if msg["remetente"] == "user":
-        st.markdown(f"<div class='user-bubble'>{msg['texto']}</div>", unsafe_allow_html=True)
-    else:
-        st.markdown(f"<div class='calia-bubble'>{msg['texto']}</div>", unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
 
-# ==============================================
-#    ENTRADA DO USUÁRIO
-# ==============================================
-prompt = st.chat_input("Escreva algo para CALIA...")
+# -------------------------------
+# 🚀 Execução direta do servidor
+# -------------------------------
+if __name__ == "__main__":
+    """
+    Execução direta do servidor Flask.
+    Este bloco é acionado quando o arquivo é executado manualmente.
+    """
 
-if prompt:
-    st.session_state.historico.append({"remetente": "user", "texto": prompt})
+    app = create_app()
 
-    with st.spinner("CALIA está pensando... 💭"):
-        # Busca contexto no RAG
-        docs = retriever.invoke(prompt)
-        contexto = "\n\n".join([d.page_content for d in docs]) if docs else "Nenhum contexto relevante encontrado."
+    # Obtém configuração de host e porta (permite customização via ambiente)
+    host = os.getenv("FLASK_HOST", "0.0.0.0")
+    port = int(os.getenv("FLASK_PORT", "5000"))
+    debug_mode = os.getenv("FLASK_DEBUG", "true").lower() == "True"
 
-        # Monta o prompt com contexto
-        prompt_final = f"""
-        Use o seguinte contexto para responder de forma útil e natural:
-        {contexto}
+    logging.info(f"Iniciando CALIA V2.0 em http://{host}:{port} (debug={debug_mode})")
 
-        Pergunta do usuário: {prompt}
-        """
-
-        # Gera a resposta com o modelo LLM
-        time.sleep(0.6)
-        resposta = calia_llm.invoke(prompt_final).content
-
-    # Armazena a resposta no histórico
-    st.session_state.historico.append({"remetente": "calia", "texto": resposta})
-
-    st.rerun()
-
-# ==============================================
-#    BOTÕES DE AÇÃO
-# ==============================================
-if len(st.session_state.historico) > 0:
-    ultima = st.session_state.historico[-1]
-
-    # Salvar resposta como memória (antigo)
-    if ultima["remetente"] == "calia":
-        if st.button("Salvar essa resposta como memória"):
-            salvar_memoria(ultima["texto"])
-            st.success("Memória salva ✅")
-
-    # Salvar conversa completa como .txt e atualizar FAISS
-    if st.button(" Salvar conversa no RAG"):
-        arquivo = salvar_historico_como_txt(st.session_state.historico, RAG_PATH)
-        if arquivo:
-            atualizar_faiss_com_novo_arquivo(arquivo)
-            st.success("Conversa salva e adicionada ao RAG com sucesso ")
-
-pasta_docs = Path(RAG_PATH)
-
-if not pasta_docs.exists():
-    os.makedirs(pasta_docs)
-    print(f"[INFO] Pasta RAG criada automaticamente em: {pasta_docs}")
+    # Inicia o servidor Flask
+    app.run(
+        host=host,
+        port=port,
+        debug=debug_mode
+    )

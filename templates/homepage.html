@@ -1,0 +1,199 @@
+<!--
+homepage.html — Interface principal da CALIA V2.0 (documentado)
+
+Este template é carregado pelo Flask (rotas.py -> homepage).
+Ele fornece:
+ - Layout responsivo (sidebar + área de chat)
+ - Conexão com o endpoint /ask via Fetch API
+ - Carregamento de estilos externos via url_for('static', ...)
+ - Comentários explicativos em cada bloco para facilitar manutenção
+-->
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <!-- Metadados básicos -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CALIA V2.0 — Assistente</title>
+
+  <!-- Link para o CSS externo que contém o estilo (glass, fundo etc).
+       O Flask resolverá a URL quando renderizar o template. -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='./style.css') }}">
+
+  <!--
+    Observação:
+    - Use fonts via @import no CSS ou adicione <link> para Google Fonts aqui, se desejar.
+    - Evite carregar scripts desnecessários no head para manter performance.
+  -->
+</head>
+<body>
+  <!--
+    Container principal:
+    - Grid com duas colunas (sidebar + chat)
+    - Responsividade tratada no CSS (muda para 1 coluna em telas pequenas)
+  -->
+  <div class="container" role="application" aria-labelledby="app-title">
+    <!--
+      SIDEBAR
+      - Informações, instruções e branding.
+      - Mantemos conteúdo estático aqui para orientar o usuário.
+    -->
+    <aside class="sidebar" aria-label="Informações da aplicação">
+      <!-- Título/Brand -->
+      <h1 id="app-title">CALIA V2.0</h1>
+      <p class="subtitle">Assistente Pessoal — RAG + LLM</p>
+
+      <!-- Texto explicativo curto -->
+      <p>
+        Converse com a CALIA usando o campo à direita. Se você já indexou documentos com FAISS,
+        pergunte sobre o conteúdo deles — a CALIA usará o contexto recuperado.
+      </p>
+
+      <!-- Dicas rápidas (úteis para novos usuários) -->
+      <div class="tips">
+        <p class="small"><strong>Dicas de uso:</strong></p>
+        <ul>
+          <li class="small">Pergunte por resumos: "Resuma o contrato X".</li>
+          <li class="small">Peça ações: "Liste os pontos principais".</li>
+          <li class="small">Teste comportamento sem índice: "O que você sabe sobre CALIA?"</li>
+        </ul>
+      </div>
+    </aside>
+
+    <!--
+      CHAT AREA
+      - Header: status simples
+      - Messages: área rolável com mensagens do usuário e da IA
+      - Composer: textarea + botão enviar
+    -->
+    <main class="chat-card" aria-live="polite">
+      <!-- Cabeçalho do chat com status -->
+      <header class="chat-header" role="banner" aria-hidden="false">
+        <div>
+          <h2 style="margin:0">Conversa</h2>
+        </div>
+        <!-- Status visual que muda durante requisições -->
+        <div id="status" class="small">Pronto</div>
+      </header>
+
+      <!--
+        Área de mensagens:
+        - É um div com overflow-y:auto para permitir scroll
+        - Mensagens são inseridas dinamicamente via JavaScript
+      -->
+      <section id="messages" class="messages" aria-live="polite" aria-atomic="false">
+        <!-- Mensagem inicial (renderizada pelo script abaixo) -->
+      </section>
+
+      <!--
+        Composer:
+        - Textarea para digitação (suporta Enter para enviar, Shift+Enter para nova linha)
+        - Botão de envio que chama a função sendMessage()
+        - Acessibilidade: labels implícitos via placeholder e aria-label no textarea
+      -->
+      <footer class="composer" role="form" aria-label="Compositor de mensagens">
+        <textarea id="input"
+                  placeholder="Digite sua pergunta e pressione Enter (Shift+Enter para nova linha)..."
+                  aria-label="Campo de mensagem"
+                  autocomplete="off"
+                  spellcheck="true"></textarea>
+        <button id="send" aria-label="Enviar mensagem">Enviar</button>
+      </footer>
+    </main>
+  </div>
+
+  <!--
+    SCRIPT: Lógica do cliente (comentar as principais partes)
+    - appendMessage: insere bolhas de mensagem na area #messages
+    - sendMessage: envia request POST para /ask e processa resposta JSON
+    - Eventos: click no botão e tecla Enter no textarea
+  -->
+  <script>
+    // Elementos principais
+    const inputEl = document.getElementById('input');
+    const sendBtn = document.getElementById('send');
+    const messagesEl = document.getElementById('messages');
+    const statusEl = document.getElementById('status');
+
+    /**
+     * appendMessage(text, who)
+     * - who: 'user' | 'bot'
+     * Cria um elemento de mensagem com a classe apropriada para estilização.
+     */
+    function appendMessage(text, who='bot') {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'msg ' + (who === 'user' ? 'user' : 'bot');
+      // Segurança simples: evitar injeção HTML usando innerText
+      wrapper.innerText = text;
+      messagesEl.appendChild(wrapper);
+      // Mantém scroll no final
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    /**
+     * sendMessage()
+     * - Valida o input
+     * - Mostra mensagem do usuário
+     * - Desabilita o botão / indica status
+     * - Faz fetch para /ask com JSON { message: texto }
+     * - Processa retorno e adiciona mensagem do bot
+     */
+    async function sendMessage() {
+      const text = inputEl.value.trim();
+      if (!text) {
+        // Se não houver texto, nada a fazer
+        return;
+      }
+
+      // Adiciona mensagem do usuário na UI
+      appendMessage(text, 'user');
+      // Limpa o campo e desabilita UI enquanto aguarda
+      inputEl.value = '';
+      sendBtn.disabled = true;
+      statusEl.innerText = 'Enviando...';
+
+      try {
+        const response = await fetch('/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text })
+        });
+
+        // Tenta obter JSON; se falhar, captura no catch
+        const data = await response.json();
+
+        if (data && data.ok) {
+          // Se ok=true, mostra a resposta
+          appendMessage(data.resposta || '[Sem resposta]');
+        } else {
+          // Caso de erro lógico (ex: mensagem vazia, erro interno)
+          const errMsg = data && data.error ? data.error : '[Erro desconhecido]';
+          appendMessage('[Erro] ' + errMsg);
+        }
+      } catch (err) {
+        // Erro de rede ou JSON inválido
+        appendMessage('[Erro de rede] ' + (err.message || err));
+      } finally {
+        // Reabilita UI e atualiza status
+        sendBtn.disabled = false;
+        statusEl.innerText = 'Pronto';
+        inputEl.focus();
+      }
+    }
+
+    // Evento: clique no botão Enviar
+    sendBtn.addEventListener('click', sendMessage);
+
+    // Evento: pressionar Enter para enviar (Shift+Enter insere nova linha)
+    inputEl.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // Mensagem de boas-vindas inicial (ajuda a testar a UI)
+    appendMessage("Olá! Eu sou CALIA — pergunte algo para começar.");
+  </script>
+</body>
+</html>

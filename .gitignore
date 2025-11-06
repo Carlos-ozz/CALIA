@@ -1,5 +1,84 @@
-.env
-__pycache__/
-memories.json
+# =====================================
+# 🧠 CALIA V2.0 — Arquivo .gitignore
+# =====================================
+
+# --- Ambientes virtuais ---
 venv/
+.env/
+.venv/
+env/
+ENV/
+
+# --- Configurações sensíveis ---
+.env
+*.key
+*.pem
+*.crt
+*.secret
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- Cache do Python ---
+*.py[cod]
+*$py.class
+__pycache__/
+*.spec
+*.egg-info/
+*.egg/
+.eggs/
+
+# --- Dados temporários / Logs ---
+*.log
+*.tmp
+*.bak
+*.swp
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.sqlite3
+*.db
+
+# --- Memória e vetores ---
 faiss_index/
+index/
+*.faiss
+*.pkl
+*.bin
+*.npy
+*.npz
+
+# --- Uploads e arquivos processados ---
+uploads/
+cache/
+temp/
+*.pdf
+*.txt
+
+# --- Builds e distribuições ---
+build/
+dist/
+*.egg-info/
+*.manifest
+*.spec
+
+# --- Ambiente do Flask ---
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Arquivos do sistema ---
+desktop.ini
+~$*
+*.bak
+
+# --- Backup e exports ---
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+/export/
